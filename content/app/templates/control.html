@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регулирование температуры | АСУ ТП Котельной</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: white;
+            font-size: 2em;
+        }
+        .back-link {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 25px;
+            transition: background 0.3s;
+        }
+        .back-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .mode-switch {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .mode-btn {
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        .mode-btn.auto {
+            background: #28a745;
+            color: white;
+        }
+        .mode-btn.manual {
+            background: #dc3545;
+            color: white;
+        }
+        .mode-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .mode-btn.inactive {
+            background: #6c757d;
+        }
+        .gauge {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .gauge-value {
+            font-size: 4em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .gauge-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .parameters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .param {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .param-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .param-label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        .control-input {
+            margin: 20px 0;
+        }
+        .control-input label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+        .control-input input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        .slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .manual-control {
+            border-top: 2px solid #e0e0e0;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .status.auto {
+            background: #28a745;
+            color: white;
+        }
+        .status.manual {
+            background: #dc3545;
+            color: white;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 10px;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1> Регулирование температуры теплоносителя</h1>
+            <a href="/" class="back-link">← На главную</a>
+        </div>
+
+        <div class="panel">
+            <div class="mode-switch">
+                <button id="autoMode" class="mode-btn auto"> Автоматический</button>
+                <button id="manualMode" class="mode-btn manual"> Ручной</button>
+            </div>
+
+            <div class="gauge">
+                <div class="gauge-value" id="outputSignal">0</div>
+                <div class="gauge-label">Сигнал на регулирующий клапан (%)</div>
+            </div>
+
+            <div class="parameters">
+                <div class="param">
+                    <div class="param-value" id="tOut">--</div>
+                    <div class="param-label"> Температура наружного воздуха (°C)</div>
+                </div>
+                <div class="param">
+                    <div class="param-value" id="tCurrent">--</div>
+                    <div class="param-label"> Текущая температура теплоносителя (°C)</div>
+                </div>
+                <div class="param">
+                    <div class="param-value" id="setpoint">--</div>
+                    <div class="param-label"> Уставка (целевая температура) (°C)</div>
+                </div>
+                <div class="param">
+                    <div class="param-value" id="error">--</div>
+                    <div class="param-label"> Ошибка регулирования (°C)</div>
+                </div>
+            </div>
+
+            <div class="control-input">
+                <label> Температура наружного воздуха (°C):</label>
+                <input type="number" id="tOutInput" step="0.5" value="0">
+                <button id="simulateBtn"> Смоделировать цикл</button>
+            </div>
+
+            <div id="manualControlSection" class="manual-control" style="display: none;">
+                <label> Ручное управление клапаном (%):</label>
+                <input type="range" id="manualSlider" class="slider" min="0" max="100" step="1" value="0">
+                <div style="text-align: center; margin-top: 10px;">
+                    <span id="manualValue">0</span>%
+                </div>
+                <button id="setManualBtn">Установить</button>
+            </div>
+
+            <div id="resultMessage" class="result"></div>
+        </div>
+
+        <div class="panel">
+            <h3> Информация о настройках</h3>
+            <div class="parameters">
+                <div class="param">
+                    <div class="param-value">{{ settings.kp }}</div>
+                    <div class="param-label">Коэффициент Kp (P)</div>
+                </div>
+                <div class="param">
+                    <div class="param-value">{{ settings.ki }}</div>
+                    <div class="param-label">Коэффициент Ki (I)</div>
+                </div>
+                <div class="param">
+                    <div class="param-value">{{ settings.kd }}</div>
+                    <div class="param-label">Коэффициент Kd (D)</div>
+                </div>
+                <div class="param">
+                    <div class="param-value">{{ graph.t_supply_min }}°C</div>
+                    <div class="param-label">При {{ graph.t_out_min }}°C</div>
+                </div>
+                <div class="param">
+                    <div class="param-value">{{ graph.t_supply_max }}°C</div>
+                    <div class="param-label">При {{ graph.t_out_max }}°C</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = '{{ mode }}';
+        let currentManualOutput = {{ manual_output }};
+
+        function updateModeUI() {
+            const autoBtn = document.getElementById('autoMode');
+            const manualBtn = document.getElementById('manualMode');
+            const manualSection = document.getElementById('manualControlSection');
+
+            if (currentMode === 'AUTO') {
+                autoBtn.classList.add('active');
+                autoBtn.classList.remove('inactive');
+                manualBtn.classList.add('inactive');
+                manualBtn.classList.remove('active');
+                manualSection.style.display = 'none';
+            } else {
+                autoBtn.classList.add('inactive');
+                autoBtn.classList.remove('active');
+                manualBtn.classList.add('active');
+                manualBtn.classList.remove('inactive');
+                manualSection.style.display = 'block';
+                document.getElementById('manualSlider').value = currentManualOutput;
+                document.getElementById('manualValue').innerText = currentManualOutput;
+            }
+        }
+
+        async function setMode(mode) {
+            const response = await fetch(`/api/control/mode/${mode}`, { method: 'POST' });
+            if (response.ok) {
+                currentMode = mode;
+                updateModeUI();
+                showMessage(`Режим изменен на ${mode === 'AUTO' ? 'Автоматический' : 'Ручной'}`, 'success');
+            } else {
+                showMessage('Ошибка изменения режима', 'error');
+            }
+        }
+
+        async function setManualOutput(value) {
+            const response = await fetch('/api/control/manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ output_signal: value })
+            });
+            if (response.ok) {
+                currentManualOutput = value;
+                showMessage(`Сигнал установлен на ${value}%`, 'success');
+                await executeControl();
+            } else {
+                showMessage('Ошибка установки сигнала', 'error');
+            }
+        }
+
+        async function executeControl() {
+            const tOut = parseFloat(document.getElementById('tOutInput').value);
+
+            const response = await fetch('/api/control/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    t_out: tOut,
+                    t_current: parseFloat(document.getElementById('tCurrent').innerText) || 70,
+                    dt: 1.0
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('tOut').innerText = data.t_out;
+                document.getElementById('tCurrent').innerText = data.t_current;
+                document.getElementById('setpoint').innerText = data.setpoint;
+                document.getElementById('error').innerText = data.error;
+                document.getElementById('outputSignal').innerText = data.output_signal;
+
+                if (data.mode === 'MANUAL') {
+                    document.getElementById('manualSlider').value = data.manual_output;
+                    document.getElementById('manualValue').innerText = data.manual_output;
+                }
+            } else {
+                showMessage('Ошибка выполнения цикла управления', 'error');
+            }
+        }
+
+        function showMessage(msg, type) {
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.innerText = msg;
+            resultDiv.className = `result show ${type}`;
+            setTimeout(() => {
+                resultDiv.classList.remove('show');
+            }, 3000);
+        }
+
+        // Инициализация
+        document.getElementById('autoMode').onclick = () => setMode('AUTO');
+        document.getElementById('manualMode').onclick = () => setMode('MANUAL');
+        document.getElementById('simulateBtn').onclick = executeControl;
+        document.getElementById('setManualBtn').onclick = () => {
+            const val = parseFloat(document.getElementById('manualSlider').value);
+            setManualOutput(val);
+        };
+        document.getElementById('manualSlider').oninput = (e) => {
+            document.getElementById('manualValue').innerText = e.target.value;
+        };
+
+        updateModeUI();
+
+        // Инициализация начальных данных
+        fetch('/api/control/mode')
+            .then(res => res.json())
+            .then(data => {
+                currentMode = data.mode;
+                currentManualOutput = data.manual_output;
+                updateModeUI();
+            });
+
+        // Запуск первого цикла
+        setTimeout(executeControl, 1000);
+
+        // Автоматическое обновление каждые 5 секунд
+        setInterval(executeControl, 5000);
+    </script>
+</body>
+</html>
